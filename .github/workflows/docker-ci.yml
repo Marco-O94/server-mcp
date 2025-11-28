@@ -1,0 +1,231 @@
+name: Docker Infrastructure CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docker-compose.yml'
+      - 'docker-init/**'
+      - '.env.example'
+      - '.github/workflows/docker-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docker-compose.yml'
+      - 'docker-init/**'
+      - '.env.example'
+
+jobs:
+  validate-docker:
+    name: Validate Docker Configuration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Validate docker-compose.yml
+      run: |
+        docker-compose config
+        
+    - name: Check .env.example exists
+      run: |
+        if [ ! -f .env.example ]; then
+          echo "Error: .env.example not found"
+          exit 1
+        fi
+        echo ".env.example found ✓"
+        
+    - name: Create .env from example
+      run: cp .env.example .env
+      
+    - name: Validate environment variables
+      run: |
+        echo "Checking required environment variables..."
+        source .env
+        
+        required_vars=(
+          "MONGO_INITDB_ROOT_USERNAME"
+          "MONGO_INITDB_ROOT_PASSWORD"
+          "MONGO_INITDB_DATABASE"
+          "MONGODB_URI"
+          "MYSQL_ROOT_PASSWORD"
+          "MYSQL_DATABASE"
+          "MYSQL_USER"
+          "MYSQL_PASSWORD"
+          "MCP_SERVER_PORT"
+          "NODE_ENV"
+          "NEXT_PUBLIC_API_URL"
+          "FRONTEND_PORT"
+          "OLLAMA_PORT"
+          "NEXT_PUBLIC_OLLAMA_URL"
+        )
+        
+        for var in "${required_vars[@]}"; do
+          if [ -z "${!var}" ]; then
+            echo "Error: $var is not set"
+            exit 1
+          fi
+        done
+        echo "All required variables are set ✓"
+
+  test-databases:
+    name: Test Database Initialization
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Create .env from example
+      run: cp .env.example .env
+      
+    - name: Start database services
+      run: |
+        docker-compose up -d mongodb mysql
+        
+    - name: Wait for MongoDB to be ready
+      run: |
+        timeout 60 bash -c '
+          until docker-compose exec -T mongodb mongosh --eval "db.runCommand({ ping: 1 })" --quiet > /dev/null 2>&1; do
+            echo "Waiting for MongoDB..."
+            sleep 2
+          done
+        '
+        echo "MongoDB is ready ✓"
+        
+    - name: Wait for MySQL to be ready
+      run: |
+        timeout 60 bash -c '
+          until docker-compose exec -T mysql mysqladmin ping -h localhost -u root -pmysqlrootpassword --silent > /dev/null 2>&1; do
+            echo "Waiting for MySQL..."
+            sleep 2
+          done
+        '
+        echo "MySQL is ready ✓"
+        
+    - name: Test MongoDB collections
+      run: |
+        echo "Checking MongoDB collections..."
+        docker-compose exec -T mongodb mongosh -u admin -p mongopassword --authenticationDatabase admin paints_db --eval "
+          db.getCollectionNames().forEach(function(collection) {
+            print(collection + ': ' + db[collection].countDocuments());
+          });
+        "
+        
+    - name: Test MySQL tables
+      run: |
+        echo "Checking MySQL tables..."
+        docker-compose exec -T mysql mysql -u root -pmysqlrootpassword food_industry -e "
+          SHOW TABLES;
+          SELECT COUNT(*) as total_products FROM products;
+          SELECT COUNT(*) as total_categories FROM categories;
+          SELECT COUNT(*) as total_suppliers FROM suppliers;
+        "
+        
+    - name: Show logs on failure
+      if: failure()
+      run: |
+        echo "=== MongoDB Logs ==="
+        docker-compose logs mongodb
+        echo "=== MySQL Logs ==="
+        docker-compose logs mysql
+        
+    - name: Cleanup
+      if: always()
+      run: docker-compose down -v
+
+  test-network:
+    name: Test Container Networking
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Create .env from example
+      run: cp .env.example .env
+      
+    - name: Start all services
+      run: docker-compose up -d
+      
+    - name: Wait for services
+      run: sleep 30
+      
+    - name: Test network connectivity
+      run: |
+        # Test if containers can communicate
+        docker-compose exec -T mongodb ping -c 1 mysql || echo "MongoDB cannot reach MySQL"
+        docker-compose exec -T mysql ping -c 1 mongodb || echo "MySQL cannot reach MongoDB"
+        
+    - name: Verify network exists
+      run: |
+        docker network inspect db-mcp_app-network
+        
+    - name: Cleanup
+      if: always()
+      run: docker-compose down -v
+
+  lint-docker-files:
+    name: Lint Docker Files
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run hadolint on Dockerfiles
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: "*/Dockerfile"
+        recursive: true
+        failure-threshold: warning
+      continue-on-error: true
+      
+    - name: Validate init scripts syntax
+      run: |
+        # Check JavaScript files
+        if command -v node &> /dev/null; then
+          for file in docker-init/mongodb/*.js; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              node --check "$file"
+            fi
+          done
+        fi
+        
+        # Check SQL files for basic syntax
+        for file in docker-init/mysql/*.sql; do
+          if [ -f "$file" ]; then
+            echo "Checking $file..."
+            # Basic check - just ensure file is readable
+            cat "$file" > /dev/null
+          fi
+        done
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'config'
+        scan-ref: 'docker-compose.yml'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+      continue-on-error: true
+      
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
