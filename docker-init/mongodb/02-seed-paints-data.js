@@ -3317,7 +3317,7 @@ const orders = [
         product_id: products[41]._id,
         product_name: products[41].name,
         quantity: 16,
-        price: products[41].name,
+        price: products[41].price,
       },
       {
         product_id: products[45]._id,

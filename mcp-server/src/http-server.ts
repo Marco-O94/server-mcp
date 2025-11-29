@@ -25,6 +25,37 @@ import {
   getProductSalesTool,
 } from "./tools/mongodb/paint-orders.js";
 
+// Import MongoDB Analytics tools
+import {
+  getSalesTrendsTool,
+  getRevenueByCategoryTool,
+  comparePeriodsTool,
+} from "./tools/mongodb/paint-analytics.js";
+
+// Import MongoDB Customer Intelligence tools
+import {
+  getTopCustomersTool,
+  getCustomerInsightsTool,
+  getCustomerOrdersTool,
+} from "./tools/mongodb/paint-customers.js";
+
+// Import MongoDB Inventory tools
+import {
+  checkReorderNeededTool,
+  getStockSummaryTool,
+  predictStockOutTool,
+  updateStockTool,
+} from "./tools/mongodb/paint-inventory.js";
+
+// Import MongoDB CRUD tools
+import {
+  createOrderTool,
+  updateOrderStatusTool,
+  addProductTool,
+  updateProductTool,
+  deleteProductTool,
+} from "./tools/mongodb/paint-crud.js";
+
 // Import MySQL tools
 import { listFoodProductsTool } from "./tools/mysql/food-products.js";
 import { searchFoodProductsTool } from "./tools/mysql/food-products.js";
@@ -48,6 +79,7 @@ const logger = pino(
 
 // All available tools mapped by name
 const TOOLS = {
+  // MongoDB Core tools
   list_paint_products: listPaintProductsTool,
   search_paint_by_color: searchPaintByColorTool,
   get_paint_product_details: getPaintProductDetailsTool,
@@ -55,6 +87,31 @@ const TOOLS = {
   get_color_formula: getColorFormulaTool,
   list_paint_orders: listPaintOrdersTool,
   get_product_sales: getProductSalesTool,
+
+  // MongoDB Analytics tools
+  get_sales_trends: getSalesTrendsTool,
+  get_revenue_by_category: getRevenueByCategoryTool,
+  compare_periods: comparePeriodsTool,
+
+  // MongoDB Customer Intelligence tools
+  get_top_customers: getTopCustomersTool,
+  get_customer_insights: getCustomerInsightsTool,
+  get_customer_orders: getCustomerOrdersTool,
+
+  // MongoDB Inventory tools
+  check_reorder_needed: checkReorderNeededTool,
+  get_stock_summary: getStockSummaryTool,
+  predict_stock_out: predictStockOutTool,
+  update_stock: updateStockTool,
+
+  // MongoDB CRUD tools
+  create_order: createOrderTool,
+  update_order_status: updateOrderStatusTool,
+  add_product: addProductTool,
+  update_product: updateProductTool,
+  delete_product: deleteProductTool,
+
+  // MySQL tools
   list_food_products: listFoodProductsTool,
   search_food_products: searchFoodProductsTool,
   get_food_product_details: getFoodProductDetailsTool,

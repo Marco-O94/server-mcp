@@ -29,6 +29,37 @@ import {
   getProductSalesTool,
 } from "./tools/mongodb/paint-orders.js";
 
+// Import MongoDB Analytics tools
+import {
+  getSalesTrendsTool,
+  getRevenueByCategoryTool,
+  comparePeriodsTool,
+} from "./tools/mongodb/paint-analytics.js";
+
+// Import MongoDB Customer Intelligence tools
+import {
+  getTopCustomersTool,
+  getCustomerInsightsTool,
+  getCustomerOrdersTool,
+} from "./tools/mongodb/paint-customers.js";
+
+// Import MongoDB Inventory tools
+import {
+  checkReorderNeededTool,
+  getStockSummaryTool,
+  predictStockOutTool,
+  updateStockTool,
+} from "./tools/mongodb/paint-inventory.js";
+
+// Import MongoDB CRUD tools
+import {
+  createOrderTool,
+  updateOrderStatusTool,
+  addProductTool,
+  updateProductTool,
+  deleteProductTool,
+} from "./tools/mongodb/paint-crud.js";
+
 // Import MySQL tools
 import { listFoodProductsTool } from "./tools/mysql/food-products.js";
 import { searchFoodProductsTool } from "./tools/mysql/food-products.js";
@@ -52,7 +83,7 @@ const logger = pino(
 
 // All available tools
 const TOOLS = [
-  // MongoDB tools (7)
+  // MongoDB Core tools (7)
   listPaintProductsTool,
   searchPaintByColorTool,
   getPaintProductDetailsTool,
@@ -60,6 +91,29 @@ const TOOLS = [
   getColorFormulaTool,
   listPaintOrdersTool,
   getProductSalesTool,
+
+  // MongoDB Analytics tools (3)
+  getSalesTrendsTool,
+  getRevenueByCategoryTool,
+  comparePeriodsTool,
+
+  // MongoDB Customer Intelligence tools (3)
+  getTopCustomersTool,
+  getCustomerInsightsTool,
+  getCustomerOrdersTool,
+
+  // MongoDB Inventory tools (4)
+  checkReorderNeededTool,
+  getStockSummaryTool,
+  predictStockOutTool,
+  updateStockTool,
+
+  // MongoDB CRUD tools (5)
+  createOrderTool,
+  updateOrderStatusTool,
+  addProductTool,
+  updateProductTool,
+  deleteProductTool,
 
   // MySQL tools (8)
   listFoodProductsTool,

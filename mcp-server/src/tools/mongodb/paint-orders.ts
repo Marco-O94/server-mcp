@@ -274,6 +274,18 @@ export const getProductSalesTool = {
         .aggregate([
           { $match: matchStage },
           { $unwind: "$items" },
+          // Filter out items where price is not a valid number
+          {
+            $match: {
+              $or: [
+                { "items.price": { $type: "number" } },
+                { "items.price": { $type: "double" } },
+                { "items.price": { $type: "int" } },
+                { "items.price": { $type: "long" } },
+                { "items.price": { $type: "decimal" } },
+              ],
+            },
+          },
           ...(input.product_code
             ? [
                 {
@@ -288,7 +300,9 @@ export const getProductSalesTool = {
               _id: "$items.product_id",
               total_quantity: { $sum: "$items.quantity" },
               total_revenue: {
-                $sum: { $multiply: ["$items.quantity", "$items.price"] },
+                $sum: {
+                  $multiply: ["$items.quantity", "$items.price"],
+                },
               },
               order_count: { $sum: 1 },
             },
