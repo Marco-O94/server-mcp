@@ -7,6 +7,8 @@ The MCP Server is a TypeScript/Node.js application that exposes database tools t
 - **Technology**: Node.js 20, TypeScript, @modelcontextprotocol/sdk
 - **Transports**: stdio (JSON-RPC) + HTTP (Express on port 8080)
 - **Total Tools**: 30 (22 MongoDB + 8 MySQL)
+- **Resources**: 12 (schema, reference, rules, analytics)
+- **Prompts**: 14 (sales, inventory, customer, reports, operations)
 
 ## Architecture
 
@@ -29,6 +31,10 @@ The MCP Server is a TypeScript/Node.js application that exposes database tools t
         food-batches.ts       # Production batches & low stock
         food-suppliers.ts     # Suppliers
         food-orders.ts        # Orders
+    /resources
+      index.ts                # Resource definitions & handlers
+    /prompts
+      index.ts                # Prompt templates & message generators
     /database
       mongodb-client.ts       # MongoDB connection pooling
       mysql-client.ts         # MySQL connection pooling
@@ -477,6 +483,116 @@ mcp-inspector npx tsx mcp-server/src/server.ts
 
 ---
 
+## Resources (12 Total)
+
+Resources provide static and reference data that LLMs can read for context.
+
+### Schema Resources (4)
+
+| URI                          | Description                       |
+| ---------------------------- | --------------------------------- |
+| `schema://mongodb/products`  | Paint products collection schema  |
+| `schema://mongodb/orders`    | Paint orders collection schema    |
+| `schema://mongodb/suppliers` | Paint suppliers collection schema |
+| `schema://mysql/products`    | Food products table schema        |
+
+### Reference Data Resources (4)
+
+| URI                          | Description                              |
+| ---------------------------- | ---------------------------------------- |
+| `reference://colors`         | Paint color catalog with hex codes       |
+| `reference://finishes`       | Paint finishes (opaco, satinato, lucido) |
+| `reference://categories`     | Product categories for paints and food   |
+| `reference://order-statuses` | Order status workflow and transitions    |
+
+### Business Rules Resources (2)
+
+| URI                            | Description                           |
+| ------------------------------ | ------------------------------------- |
+| `rules://inventory-thresholds` | Reorder thresholds and urgency levels |
+| `rules://pricing`              | Pricing tiers and discount rules      |
+
+### Analytics Snapshots (2)
+
+| URI                             | Description                       |
+| ------------------------------- | --------------------------------- |
+| `analytics://inventory-summary` | Live inventory levels by category |
+| `analytics://sales-summary`     | Last 30 days sales summary        |
+
+### HTTP Resource Endpoints
+
+```bash
+# List all resources
+curl http://localhost:8080/resources
+
+# Read specific resource
+curl http://localhost:8080/resources/reference://order-statuses
+curl http://localhost:8080/resources/analytics://inventory-summary
+```
+
+---
+
+## Prompts (14 Total)
+
+Prompts are pre-defined conversation templates that guide LLMs through complex tasks.
+
+### Sales & Analytics (3)
+
+| Prompt            | Description                            | Required Args                                          |
+| ----------------- | -------------------------------------- | ------------------------------------------------------ |
+| `analyze-sales`   | Analyze sales performance for a period | start_date, end_date                                   |
+| `compare-periods` | Compare two time periods               | period1_start, period1_end, period2_start, period2_end |
+| `forecast-demand` | Forecast product demand                | (none)                                                 |
+
+### Inventory Management (3)
+
+| Prompt           | Description             | Required Args |
+| ---------------- | ----------------------- | ------------- |
+| `reorder-report` | Generate reorder report | (none)        |
+| `stock-audit`    | Perform stock audit     | (none)        |
+| `expiry-check`   | Check expiring products | (none)        |
+
+### Customer Intelligence (2)
+
+| Prompt                   | Description                      | Required Args |
+| ------------------------ | -------------------------------- | ------------- |
+| `customer-analysis`      | Analyze customer behavior        | (none)        |
+| `product-recommendation` | Generate product recommendations | customer_id   |
+
+### Report Generation (3)
+
+| Prompt                 | Description                       | Required Args |
+| ---------------------- | --------------------------------- | ------------- |
+| `monthly-report`       | Generate monthly business report  | month, year   |
+| `supplier-performance` | Evaluate supplier performance     | (none)        |
+| `category-analysis`    | Deep analysis of product category | category      |
+
+### Data Entry & Operations (3)
+
+| Prompt               | Description              | Required Args |
+| -------------------- | ------------------------ | ------------- |
+| `new-product-wizard` | Guided product creation  | product_type  |
+| `bulk-stock-update`  | Bulk stock level updates | source        |
+| `order-creation`     | Guided order creation    | customer_id   |
+
+### HTTP Prompt Endpoints
+
+```bash
+# List all prompts
+curl http://localhost:8080/prompts
+
+# Get prompt messages
+curl -X POST http://localhost:8080/prompts/analyze-sales \
+  -H "Content-Type: application/json" \
+  -d '{"start_date":"2024-01-01","end_date":"2024-12-31"}'
+
+curl -X POST http://localhost:8080/prompts/monthly-report \
+  -H "Content-Type: application/json" \
+  -d '{"month":"11","year":"2024"}'
+```
+
+---
+
 ## Technical Notes
 
 ### Logging
@@ -498,4 +614,6 @@ All loggers use Pino configured to write to **stderr** (fd 2) to avoid interferi
 
 **Last Updated**: November 29, 2025
 **Total Tools**: 30 (22 MongoDB + 8 MySQL)
+**Resources**: 12 (4 schema + 4 reference + 2 rules + 2 analytics)
+**Prompts**: 14 (3 sales + 3 inventory + 2 customer + 3 reports + 3 operations)
 **MCP SDK Version**: 1.0.4

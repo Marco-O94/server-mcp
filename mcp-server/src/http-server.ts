@@ -66,6 +66,10 @@ import { getLowStockProductsTool } from "./tools/mysql/food-batches.js";
 import { listFoodSuppliersTool } from "./tools/mysql/food-suppliers.js";
 import { listFoodOrdersTool } from "./tools/mysql/food-orders.js";
 
+// Import Resources and Prompts
+import { RESOURCES, getResourceContent } from "./resources/index.js";
+import { PROMPTS, getPromptMessages } from "./prompts/index.js";
+
 // Load environment variables
 dotenv.config();
 
@@ -178,6 +182,76 @@ app.post("/tools/:toolName", async (req, res) => {
   }
 });
 
+// ==================== RESOURCES ENDPOINTS ====================
+
+// List available resources
+app.get("/resources", (_req, res) => {
+  logger.info("Listing resources");
+  res.json({ resources: RESOURCES });
+});
+
+// Read resource content
+app.get("/resources/:uri(*)", async (req, res) => {
+  const uri = req.params.uri;
+  logger.info({ uri }, "Reading resource");
+
+  try {
+    const content = await getResourceContent(uri);
+    res.json({
+      uri,
+      mimeType: "application/json",
+      content: JSON.parse(content),
+    });
+  } catch (error) {
+    logger.error({ uri, error }, "Error reading resource");
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Unknown error",
+      uri,
+    });
+  }
+});
+
+// ==================== PROMPTS ENDPOINTS ====================
+
+// List available prompts
+app.get("/prompts", (_req, res) => {
+  logger.info("Listing prompts");
+  res.json({ prompts: PROMPTS });
+});
+
+// Get prompt messages
+app.post("/prompts/:promptName", (req, res) => {
+  const { promptName } = req.params;
+  const args = req.body || {};
+
+  logger.info({ promptName, args }, "Getting prompt messages");
+
+  const prompt = PROMPTS.find((p) => p.name === promptName);
+  if (!prompt) {
+    return res.status(404).json({ error: `Unknown prompt: ${promptName}` });
+  }
+
+  // Validate required arguments
+  const missingArgs = prompt.arguments
+    .filter((arg) => arg.required && !args[arg.name])
+    .map((arg) => arg.name);
+
+  if (missingArgs.length > 0) {
+    return res.status(400).json({
+      error: "Missing required arguments",
+      missing: missingArgs,
+      prompt: promptName,
+    });
+  }
+
+  const messages = getPromptMessages(promptName, args);
+  return res.json({
+    prompt: promptName,
+    arguments: args,
+    messages,
+  });
+});
+
 // Initialize databases and start server
 async function main() {
   try {
@@ -198,6 +272,8 @@ async function main() {
       logger.info({ port: PORT }, "MCP HTTP Server started");
       console.log(`🚀 MCP HTTP Server running on http://localhost:${PORT}`);
       console.log(`📋 Tools list: http://localhost:${PORT}/tools`);
+      console.log(`📦 Resources: http://localhost:${PORT}/resources`);
+      console.log(`💬 Prompts: http://localhost:${PORT}/prompts`);
       console.log(`💚 Health check: http://localhost:${PORT}/health`);
     });
 

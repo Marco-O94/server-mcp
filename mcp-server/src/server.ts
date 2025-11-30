@@ -10,6 +10,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import dotenv from "dotenv";
 import pino from "pino";
@@ -17,6 +21,10 @@ import pino from "pino";
 // Import database clients
 import { getMongoDBClient } from "./database/mongodb-client.js";
 import { getMySQLClient } from "./database/mysql-client.js";
+
+// Import Resources and Prompts
+import { RESOURCES, getResourceContent } from "./resources/index.js";
+import { PROMPTS, getPromptMessages } from "./prompts/index.js";
 
 // Import MongoDB tools
 import { listPaintProductsTool } from "./tools/mongodb/paint-products.js";
@@ -138,6 +146,8 @@ class MCPDatabaseServer {
       {
         capabilities: {
           tools: {},
+          resources: {},
+          prompts: {},
         },
       }
     );
@@ -156,6 +166,59 @@ class MCPDatabaseServer {
           description: tool.description,
           inputSchema: tool.inputSchema,
         })),
+      };
+    });
+
+    // List available resources
+    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+      logger.info("Listing available resources");
+      return {
+        resources: RESOURCES,
+      };
+    });
+
+    // Read resource content
+    this.server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request) => {
+        const uri = request.params.uri;
+        logger.info({ uri }, "Reading resource");
+
+        try {
+          const content = await getResourceContent(uri);
+          return {
+            contents: [
+              {
+                uri,
+                mimeType: "application/json",
+                text: content,
+              },
+            ],
+          };
+        } catch (error) {
+          logger.error({ uri, error }, "Error reading resource");
+          throw error;
+        }
+      }
+    );
+
+    // List available prompts
+    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
+      logger.info("Listing available prompts");
+      return {
+        prompts: PROMPTS,
+      };
+    });
+
+    // Get prompt messages
+    this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      const promptName = request.params.name;
+      const args = (request.params.arguments || {}) as Record<string, string>;
+      logger.info({ promptName, args }, "Getting prompt");
+
+      const messages = getPromptMessages(promptName, args);
+      return {
+        messages,
       };
     });
 
