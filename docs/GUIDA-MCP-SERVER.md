@@ -152,7 +152,7 @@ I **Tools** sono funzioni che il LLM può chiamare per eseguire operazioni. Sono
 
 - Ricevono input strutturati (JSON Schema)
 - Possono modificare dati (CRUD)
-- Restituiscono risultati testualI
+- Restituiscono risultati testuali
 - L'LLM decide autonomamente quando chiamarli
 
 **Quando usare un Tool:**
